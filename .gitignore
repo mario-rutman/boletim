@@ -1,6 +1,6 @@
-.csv
-.html
-.xlsx
+*.csv
+*.html
+*.xlsx
 
 
 # History files
