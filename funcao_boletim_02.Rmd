@@ -1,0 +1,241 @@
+---
+title: "Boletim `r params$nome`"
+subtitle: ""
+author: ""
+date: "`r format(Sys.Date(), '%d/%m/%Y')`"
+output: html_document
+params:
+   nome:
+    label: "Aluno(a):"
+    value: Anita V.V.R.
+    input: select
+    choices: [Anita V.V.R., Alice V.V.R.]
+---
+
+```{r global, include=FALSE}
+# load data in 'global' chunk so it can be shared by all users of the dashboard
+library(readr)
+boletim <- read_rds("boletim.rds")
+```
+
+```{r setup, echo=FALSE, include=FALSE}
+# Sempre fazer isso!!!
+# Set this option in the first code chunk in the document
+knitr::opts_chunk$set
+```
+
+
+```{r include=FALSE}
+Sys.setlocale(category = "LC_ALL", locale = "pt_BR.UTF-8")
+```
+
+
+```{r include=FALSE}
+# Carregando os pacotes
+library(tidyverse)
+library(dplyr)
+library(knitr)
+library(purrr)
+library(gridExtra)
+library(grid)
+```
+
+## Temos abaixo...
+
+gráficos de barras com suas notas e médias por matéria. A cor púrpura significa que você está de parabens, teve um excelente aproveitamento.  A verde indica que está indo bem.  A amarela significa que é necessário mais estudo e atenção à matéria, pois esta situação precisa melhorar. A cor vermelha mostra que tem que ser dada prioridade zero à disciplina, do contrário suas férias podem ficar bem curtas.
+ 
+À direita dos gráficos há uma tabela que indica a combinação de notas para ser aprovada sem ir à VG.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+# A ideia aqui é criar uma função que fará o boletim inteiro,
+# sem aquele script enorme como é até agora.
+# O nome da função será relatorio_boletim.
+# As variáveis, argumentos serão: o aluno, que já está no params;
+# o ano, pois alguns têm matérias diferentes; e,
+# as matérias (o trimestre também deveria ser argumento, mas quero me familiazar mais).
+
+# A função que faz o gráfico.
+graf <- function(kkk){
+boletim %>% group_by(nome, trimestre, disciplina) %>% 
+# criando a coluna status
+mutate(status = ifelse(nota > 90, "Parabens!", ifelse(nota <= 90 & nota >= 70, "OK", ifelse(nota <= 50,
+         "Reagir!!!", "Atenção.")))) %>%  
+filter(nome == params$nome & disciplina == kkk) %>%  ungroup() %>% 
+group_by(disciplina) %>%     
+mutate(media = round(ifelse(trimestre == "2º", cumsum(nota)/2,
+                            ifelse(trimestre == "3º", cumsum(nota)/3, 
+                                    cumsum(nota))), 1)) %>%  
+
+ggplot(aes(x = trimestre, y = nota, fill =  ifelse(nota > 90, "purple4", ifelse(nota <= 90 & nota >= 70, "green2", ifelse(nota <= 50,
+         "red", "yellow2"))))) +
+geom_bar(stat = "identity", color = "black", size = 0.8) +
+geom_text(aes(label = paste(nota,"(",status,")")), vjust = -0.5, color = "black", size = 4.3) +
+geom_text(aes(y = 110, label = paste("Média", media), vjust = -0.5)) +
+geom_hline(yintercept = 50, linetype="dashed", color = "black",
+           size = 0.4, alpha = 0.6) +
+geom_hline(yintercept = 70, linetype="dashed", color = "black",
+           size = 0.4, alpha = 0.6) +
+
+scale_y_continuous(limits = c(0, 120)) +
+# trocando os nomes dos trimestres no eixo dos x.
+scale_x_discrete(labels = c("1º" = "1º trimestre",
+                            "2º" = "2º trimestre",
+                            "3º" = "3º trimestre"), drop = FALSE) +
+scale_fill_identity() +
+labs(title = kkk, x = "", y = "") +
+theme(  axis.text.y = element_blank(), # tirando texto do eixo y
+        axis.ticks.y = element_blank(), # tirando os traços do eixo y
+        panel.grid = element_blank(), # tirando todas linhas de grade
+      legend.position = "bottom",
+        # trabalhando elementos do fundo e contorno do gráfico.
+        panel.background = element_rect(fill = "cornsilk",
+                                        colour = "black",
+                                        size = 1, linetype = "solid"),
+ strip.background = element_rect(colour = "black", fill = alpha("cornsilk", 0.5)),
+ # modificando o texto
+ strip.text.x = element_text(colour = "black", face = "bold", size=10, angle=0))
+}
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+# Fazendo cada gráfico separadamente.
+art_graf <- graf("Artes")
+ciencia_graf <- graf("Ciências")
+ed_fis_graf <- graf("Educação Física")
+geo_graf <- graf("Geografia")
+hist_graf <- graf("História")
+lab_graf <- graf("Laboratório de Ciências")
+franc_graf <- graf("Língua Estrangeira Moderna")
+port_graf <- graf("Língua Portuguesa")
+mat_graf <- graf("Matemática")
+musi_graf <- graf("Música")
+
+```
+
+
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Primeiro faz-se as funções que irão ser usadas dentro da grob_02.
+
+# trim_1 dá a combinação de notas depois da prova_1.
+trim_1 <- function(nota_1){
+  nota_segundo_trimestre <- seq(100, 0, -10)
+  nota_terceiro_trimestre <- (210 - nota_1 - nota_segundo_trimestre)
+  comb_nota_2_e_3 <- tibble(nota_segundo_trimestre, nota_terceiro_trimestre) %>% filter(nota_segundo_trimestre <= 100 & nota_terceiro_trimestre <= 100)
+  return(comb_nota_2_e_3)
+}
+
+
+# trim_2 dá a combinação de notas depois da prova_2
+trim_2 <- function(nota_1, nota_2){
+  nota_terceiro_trimestre <- seq(100, 0, -10)
+  nota_na_VG<- ceiling(100 - nota_1/3 - nota_2/3 - nota_terceiro_trimestre/3)
+  comb_nota_3_e_vg <- tibble(nota_terceiro_trimestre, nota_na_VG) %>% 
+    mutate(nota_na_VG = ifelse(nota_na_VG <= 30, "Aprovada.", nota_na_VG))
+  return(comb_nota_3_e_vg)
+}
+
+# trim_3 dá duas mensagens: "A P R O V A D O\ncom média 89", ou "Para entrar de
+# férias você precisa tirar no mínimo 45". Será uma função com ifelse.
+# trim_3 <- function(nota_1, nota_2, nota_3){
+#   if(mean(c(nota_1, nota_2, nota_3)) >= 70)
+#   {
+#     paste("A P R O V A D A com média", round(mean(c(nota_1, nota_2, nota_3))))
+#   } else {
+#     paste("Nota mínima necessária para aprovação:", 100 - floor(mean(c(nota_1, nota_2, nota_3))))  
+#   } 
+# }
+# comb_notas dá a combinação de notas a partir do trimestre e das notas,
+# usados como argumentos.
+
+comb_notas <- function(trimestre, nota_1, nota_2){
+  if (trimestre == "1º") {
+    trim_1(nota_1)
+  } else {
+    trim_2(nota_1, nota_2)
+ }
+}
+
+ # A função que faz o grob (graphic object), a tabela.
+
+grob_02 <- function(kkk, trimestre){
+  
+  # Primeiro localiza a nota.
+  nota_1 <- boletim %>% filter(nome == params$nome & trimestre == "1º" & disciplina == kkk) %>% 
+    group_by(disciplina) %>% summarise(result = sum(nota)) %>% ungroup() %>% select(result) %>% as.numeric()
+  
+  nota_2 <- boletim %>% filter(nome == params$nome & trimestre == "2º" & disciplina == kkk) %>% 
+    group_by(disciplina) %>% summarise(result = sum(nota)) %>% ungroup() %>% select(result) %>% as.numeric()
+  
+   nota_3 <- boletim %>% filter(nome == params$nome & trimestre == "3º" & disciplina == kkk) %>% 
+    group_by(disciplina) %>% summarise(result = sum(nota)) %>% ungroup() %>% select(result) %>% as.numeric()
+  
+  # Depois aplica-se a nota à função combinação de notas.
+  comb <- comb_notas(trimestre, nota_1, nota_2)
+  
+  # Nos 1º e 2º trimestres isto resulta num data frame que tem que ser
+  # transformado em grob. Função tableGrob.
+  # Mas no 3º trimestre o resultado será uma frase: aprovado ou VG.
+  
+  cvm <- tableGrob(comb, rows = NULL)
+  
+  return(cvm)
+  
+}
+
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+# Fazendo cada grob separadamente.
+art_grob_02 <- grob_02("Artes", "2º")
+ciencia_grob_02 <- grob_02("Ciências", "2º")
+ed_fis_grob_02 <- grob_02("Educação Física", "2º")
+geo_grob_02 <- grob_02("Geografia", "2º")
+hist_grob_02 <- grob_02("História", "2º")
+lab_grob_02 <- grob_02("Laboratório de Ciências", "2º")
+franc_grob_02 <- grob_02("Língua Estrangeira Moderna", "2º")
+port_grob_02 <- grob_02("Língua Portuguesa", "2º")
+mat_grob_02 <- grob_02("Matemática", "2º")
+musi_grob_02 <- grob_02("Música", "2º")
+
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=10, fig.width=10}
+grid.arrange(art_graf, art_grob_02,  ciencia_graf, ciencia_grob_02, nrow = 2,
+             top = grid::textGrob("", x=0, hjust=-1.85, vjust = 10))
+```
+
+*****************************
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=14, fig.width=10}
+grid.arrange(ed_fis_graf, ed_fis_grob_02, geo_graf, geo_grob_02, nrow = 3,
+             hist_graf, hist_grob_02,
+              top = grid::textGrob("",x=0, hjust=-1.85, vjust = 10.2))
+
+```
+
+****************************
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=14, fig.width=10}
+grid.arrange(lab_graf, lab_grob_02, franc_graf, franc_grob_02, port_graf, port_grob_02, nrow = 3,
+              top = grid::textGrob("",  x = 0, hjust=-1.85, vjust = 15))
+```
+
+****************************
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height=10, fig.width=10}
+grid.arrange(mat_graf, mat_grob_02, musi_graf, musi_grob_02, nrow = 2,
+              top = grid::textGrob("",  x = 0, hjust=-1.85, vjust = 10))
+```
+
+

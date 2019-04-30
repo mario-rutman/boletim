@@ -1,0 +1,697 @@
+---
+title: "Boletim `r params$nome`"
+subtitle: ""
+author: ""
+date: "`r format(Sys.Date(), '%A, %d de %B de  %Y')`"
+output: html_document
+params:
+   nome:
+    label: "Aluno(a):"
+    value: Anita V V R
+    input: select
+    choices: [Anita V V R, Alice V V R]
+---
+
+
+```{r setup, echo=FALSE, include=FALSE}
+# Sempre fazer isso!!!
+# Set this option in the first code chunk in the document
+knitr::opts_chunk$set
+```
+
+
+```{r include=FALSE}
+# Carregando os pacotes
+library(tidyverse)
+library(dplyr)
+library(knitr)
+library(purrr)
+library(gridExtra)
+Sys.setlocale(category = "LC_ALL", locale = "pt_BR.UTF-8")
+```
+
+## Temos abaixo...
+
+ gráficos de barras com suas notas e médias por matéria. A cor verde indica que você está indo bem. A amarela significa que é necessário mais estudo e atenção à matéria, pois esta situação tem que melhorar. A cor vermelha mostra que tem que ser dada prioridade zero à matéria, do contrário suas férias podem ficar bem curtas.
+ 
+ À direita dos gráficos há uma tabela que indica a combinação de notas para passar direto. seg_trim e terc_trim mostram os pares de notas no 2º e 3ª trimestres para a aprovação sem necessidade de VG.
+
+
+
+```{r global, include=FALSE}
+# load data in 'global' chunk so it can be shared by all users of the dashboard
+library(readxl)
+ghj <- read_excel("boletim.xlsx")
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height= 5, fig.width=12}
+
+# Este chunk comporá uma linha de gráficos e tabelas com 4 colunas. 
+# Serão de Artes e Desenho Geométrico.
+
+# Primeiro crio dois objetos, os gráficos  art e des_geo.
+# Depois dois data frames, usando função.
+# Na sequência os transformo em grob (graphic objet).
+# E por fim aplico o grid.arrange do pacote grid.extra. 
+
+# 1º
+
+graf_1 <- ghj %>% mutate_if(is.character, as.factor) %>% 
+group_by(nome, trimestre, materia) %>% # Agrupando para somar.
+summarise(nota_trim = sum(nota)) %>% 
+mutate(status = ifelse(nota_trim >= 7, "OK", ifelse(nota_trim <= 5,
+         "Reagir !!!", "Atenção"))) %>%   
+filter(nome == params$nome & materia == "Artes") %>%  
+mutate_if(is.character, as.factor) %>% 
+mutate(status = fct_relevel(status, "OK", "Atenção", "Reagir !!!")) %>%  
+  
+ungroup() %>% 
+group_by(materia) %>% 
+mutate(media = round(ifelse(trimestre == "segundo", cumsum(nota_trim)/2,
+                            ifelse(trimestre == "terceiro", cumsum(nota_trim)/3, cumsum(nota_trim))), 1)) %>%   
+  
+  
+ggplot(aes(x = trimestre, y = nota_trim, fill = status)) +
+geom_bar(stat = "identity", color = "black", sixe = 0.8) +
+geom_text(aes(label = nota_trim), vjust = -0.5, color = "black", size = 4.3) +
+geom_text(aes(y = 10.3, label = paste("Média", media), vjust = -0.5)) +  
+geom_hline(yintercept = 5, linetype="dashed", color = "black",
+           size = 0.4, alpha = 0.4) +
+geom_hline(yintercept = 7, linetype="dashed", color = "black",
+           size = 0.4, alpha = 0.4) + 
+
+scale_y_continuous(limits = c(0, 11)) +
+scale_fill_manual("", 
+                    breaks = c("OK", "Atenção", "Reagir !!!"),
+                    values = c("yellow", "green2", "red")) +
+labs(title = "Artes",y = "") +
+theme(axis.text.x = element_text(face = "bold", color = "black", size = 10, angle = 0),
+        axis.text.y = element_blank(), # tirando texto do eixo y
+        axis.ticks.y = element_blank(), # tirando os traços do eixo y
+        panel.grid = element_blank(), # tirando todas linhas de grade
+      legend.position = "bottom",
+        # trabalhando elementos do fundo e contorno do gráfico.
+        panel.background = element_rect(fill = "cornsilk",
+                                        colour = "black",
+                                        size = 1, linetype = "solid"),
+ strip.background = element_rect(colour = "black", fill = alpha("cornsilk", 0.5)),
+ # modificando o texto
+ strip.text.x = element_text(colour = "black", face = "bold", size=10, angle=0))
+
+
+graf_2 <- ghj %>% mutate_if(is.character, as.factor) %>% 
+group_by(nome, trimestre, materia) %>% # Agrupando para somar.
+summarise(nota_trim = sum(nota)) %>% 
+mutate(status = ifelse(nota_trim >= 7, "OK", ifelse(nota_trim <= 5,
+         "Reagir !!!", "Atenção"))) %>%   
+filter(nome == params$nome & materia == "Desenho Geométrico") %>%  
+mutate_if(is.character, as.factor) %>% 
+mutate(status = fct_relevel(status, "OK", "Atenção", "Reagir !!!")) %>% 
+  ungroup() %>% 
+group_by(materia) %>% 
+mutate(media = round(ifelse(trimestre == "segundo", cumsum(nota_trim)/2,
+                            ifelse(trimestre == "terceiro", cumsum(nota_trim)/3, cumsum(nota_trim))), 1)) %>%
+ggplot(aes(x = trimestre, y = nota_trim, fill = status)) +
+geom_bar(stat = "identity", color = "black", sixe = 0.8) +
+geom_text(aes(label = nota_trim), vjust = -0.5, color = "black", size = 4.3) +
+  geom_text(aes(y = 10.3, label = paste("Média", media), vjust = -0.5)) +
+  
+geom_hline(yintercept = 5, linetype="dashed", color = "black",
+           size = 0.4, alpha = 0.4) +
+geom_hline(yintercept = 7, linetype="dashed", color = "black",
+           size = 0.4, alpha = 0.4) + 
+
+scale_y_continuous(limits = c(0, 11)) +
+scale_fill_manual("", 
+                    breaks = c("OK", "Atenção", "Reagir !!!"),
+                    values = c("yellow", "green2", "red")) +
+labs(title = "Desenho Geométrico", y= "") +
+theme(axis.text.x = element_text(face = "bold", color = "black", size = 10, angle = 0),
+        axis.text.y = element_blank(), # tirando texto do eixo y
+        axis.ticks.y = element_blank(), # tirando os traços do eixo y
+        panel.grid = element_blank(), # tirando todas linhas de grade
+      legend.position = "bottom",
+        # trabalhando elementos do fundo e contorno do gráfico.
+        panel.background = element_rect(fill = "cornsilk",
+                                        colour = "black",
+                                        size = 1, linetype = "solid"),
+ strip.background = element_rect(colour = "black", fill = alpha("cornsilk", 0.5)),
+ # modificando o texto
+ strip.text.x = element_text(colour = "black", face = "bold", size=10, angle=0))
+
+
+# Agora crio os valores que serão aplicados à função de
+# combinação de notas. É preciso que seja um número.
+
+nota_1 <- ghj %>% filter(nome == params$nome & trimestre == "primeiro" & materia == "Artes") %>% 
+  group_by(materia) %>% summarise(result = sum(nota)) %>% ungroup() %>% select(result) %>% as.numeric()
+
+nota_2 <- ghj %>% filter(nome == params$nome & trimestre == "primeiro" & materia == "Desenho Geométrico") %>% 
+  group_by(materia) %>% summarise(result = sum(nota)) %>% ungroup() %>% select(result) %>% as.numeric()
+
+# Depois aplico os valores à função. A função tem que estar no chunk.
+
+comb_notas_trim_1 <- function(prim_trim){
+  seg_trim <- seq(10, 0, -1)
+  terc_trim <- round((21 - prim_trim) - seq(10, 0, -1), 1)
+  vbn <- data_frame(seg_trim, terc_trim) %>% filter(seg_trim <= 10 & terc_trim <= 10)
+  return(vbn)
+}
+
+comb_1 <- comb_notas_trim_1(nota_1)
+
+comb_2 <- comb_notas_trim_1(nota_2)
+
+
+# O resultado da função éum data frame, precisa ser transformado 
+# em um grob (graphic objet). Usa-se a função tableGrob().
+
+grob_1 <- tableGrob(comb_1)
+
+grob_2 <- tableGrob(comb_2)
+
+
+# Agora junto os 4 objetos pelo grid.arrange().
+
+grid.arrange(graf_1, grob_1, graf_2, grob_2, nrow = 1)
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height= 5, fig.width=12}
+
+# Este chunk comporá uma linha de gráficos e tabelas com 4 colunas. 
+# Serão de Artes e Desenho Geométrico.
+
+# Primeiro crio dois objetos, os gráficos  art e des_geo.
+# Depois dois data frames, usando função.
+# Na sequência os transformo em grob (graphic objet).
+# E por fim aplico o grid.arrange do pacote grid.extra.
+
+# 2º
+
+graf_3 <- ghj %>% mutate_if(is.character, as.factor) %>% 
+group_by(nome, trimestre, materia) %>% # Agrupando para somar.
+summarise(nota_trim = sum(nota)) %>% 
+mutate(status = ifelse(nota_trim >= 7, "OK", ifelse(nota_trim <= 5,
+         "Reagir !!!", "Atenção"))) %>%   
+filter(nome == params$nome & materia == "Educação Física") %>%  
+mutate_if(is.character, as.factor) %>% 
+mutate(status = fct_relevel(status, "OK", "Atenção", "Reagir !!!")) %>%  
+  
+  ungroup() %>% 
+group_by(materia) %>% 
+mutate(media = round(ifelse(trimestre == "segundo", cumsum(nota_trim)/2,
+                            ifelse(trimestre == "terceiro", cumsum(nota_trim)/3, cumsum(nota_trim))), 1)) %>% 
+  
+  
+ggplot(aes(x = trimestre, y = nota_trim, fill = status)) +
+geom_bar(stat = "identity", color = "black", sixe = 0.8) +
+geom_text(aes(label = nota_trim), vjust = -0.5, color = "black", size = 4.3) +
+  geom_text(aes(y = 10.3, label = paste("Média", media), vjust = -0.5)) + 
+geom_hline(yintercept = 5, linetype="dashed", color = "black",
+           size = 0.4, alpha = 0.4) +
+geom_hline(yintercept = 7, linetype="dashed", color = "black",
+           size = 0.4, alpha = 0.4) + 
+
+scale_y_continuous(limits = c(0, 11)) +
+scale_fill_manual("", 
+                    breaks = c("OK", "Atenção", "Reagir !!!"),
+                    values = c("yellow", "green2", "red")) +
+labs(title = "Educação Física",y = "") +
+theme(axis.text.x = element_text(face = "bold", color = "black", size = 10, angle = 0),
+        axis.text.y = element_blank(), # tirando texto do eixo y
+        axis.ticks.y = element_blank(), # tirando os traços do eixo y
+        panel.grid = element_blank(), # tirando todas linhas de grade
+      legend.position = "bottom",
+        # trabalhando elementos do fundo e contorno do gráfico.
+        panel.background = element_rect(fill = "cornsilk",
+                                        colour = "black",
+                                        size = 1, linetype = "solid"),
+ strip.background = element_rect(colour = "black", fill = alpha("cornsilk", 0.5)),
+ # modificando o texto
+ strip.text.x = element_text(colour = "black", face = "bold", size=10, angle=0))
+
+
+graf_4 <- ghj %>% mutate_if(is.character, as.factor) %>% 
+group_by(nome, trimestre, materia) %>% # Agrupando para somar.
+summarise(nota_trim = sum(nota)) %>% 
+mutate(status = ifelse(nota_trim >= 7, "OK", ifelse(nota_trim <= 5,
+         "Reagir !!!", "Atenção"))) %>%   
+filter(nome == params$nome & materia == "Física") %>%  
+mutate_if(is.character, as.factor) %>% 
+mutate(status = fct_relevel(status, "OK", "Atenção", "Reagir !!!")) %>%  
+  
+  ungroup() %>% 
+group_by(materia) %>% 
+mutate(media = round(ifelse(trimestre == "segundo", cumsum(nota_trim)/2,
+                            ifelse(trimestre == "terceiro", cumsum(nota_trim)/3, cumsum(nota_trim))), 1)) %>% 
+  
+  
+ggplot(aes(x = trimestre, y = nota_trim, fill = status)) +
+geom_bar(stat = "identity", color = "black", sixe = 0.8) +
+geom_text(aes(label = nota_trim), vjust = -0.5, color = "black", size = 4.3) +
+  geom_text(aes(y = 10.3, label = paste("Média", media), vjust = -0.5)) + 
+geom_hline(yintercept = 5, linetype="dashed", color = "black",
+           size = 0.4, alpha = 0.4) +
+geom_hline(yintercept = 7, linetype="dashed", color = "black",
+           size = 0.4, alpha = 0.4) + 
+
+scale_y_continuous(limits = c(0, 11)) +
+scale_fill_manual("", 
+                    breaks = c("OK", "Atenção", "Reagir !!!"),
+                    values = c("yellow", "green2", "red")) +
+labs(title = "Física", y= "") +
+theme(axis.text.x = element_text(face = "bold", color = "black", size = 10, angle = 0),
+        axis.text.y = element_blank(), # tirando texto do eixo y
+        axis.ticks.y = element_blank(), # tirando os traços do eixo y
+        panel.grid = element_blank(), # tirando todas linhas de grade
+      legend.position = "bottom",
+        # trabalhando elementos do fundo e contorno do gráfico.
+        panel.background = element_rect(fill = "cornsilk",
+                                        colour = "black",
+                                        size = 1, linetype = "solid"),
+ strip.background = element_rect(colour = "black", fill = alpha("cornsilk", 0.5)),
+ # modificando o texto
+ strip.text.x = element_text(colour = "black", face = "bold", size=10, angle=0))
+
+
+# Agora crio os valores que serão aplicados à função de
+# combinação de notas. É preciso que seja um número.
+
+nota_3 <- ghj %>% filter(nome == params$nome & trimestre == "primeiro" & materia == "Educação Física") %>% 
+  group_by(materia) %>% summarise(result = sum(nota)) %>% ungroup() %>% select(result) %>% as.numeric()
+
+nota_4 <- ghj %>% filter(nome == params$nome & trimestre == "primeiro" & materia == "Física") %>% 
+  group_by(materia) %>% summarise(result = sum(nota)) %>% ungroup() %>% select(result) %>% as.numeric()
+
+# Depois aplico os valores à função. A função tem que estar no chunk.
+
+comb_3 <- comb_notas_trim_1(nota_3)
+
+comb_4 <- comb_notas_trim_1(nota_4)
+
+
+# O resultado da função éum data frame, precisa ser transformado 
+# em um grob (graphic objet). Usa-se a função tableGrob().
+
+grob_3 <- tableGrob(comb_3)
+
+grob_4 <- tableGrob(comb_4)
+
+
+# Agora junto os 4 objetos pelo grid.arrange().
+
+grid.arrange(graf_3, grob_3, graf_4, grob_4, nrow = 1)
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height= 5, fig.width=12}
+
+# Este chunk comporá uma linha de gráficos e tabelas com 4 colunas. 
+# Serão de Artes e Desenho Geométrico.
+
+# Primeiro crio dois objetos, os gráficos  art e des_geo.
+# Depois dois data frames, usando função.
+# Na sequência os transformo em grob (graphic objet).
+# E por fim aplico o grid.arrange do pacote grid.extra.
+
+# 3º
+
+graf_5 <- ghj %>% mutate_if(is.character, as.factor) %>% 
+group_by(nome, trimestre, materia) %>% # Agrupando para somar.
+summarise(nota_trim = sum(nota)) %>% 
+mutate(status = ifelse(nota_trim >= 7, "OK", ifelse(nota_trim <= 5,
+         "Reagir !!!", "Atenção"))) %>%   
+filter(nome == params$nome & materia == "Francês") %>%  
+mutate_if(is.character, as.factor) %>% 
+mutate(status = fct_relevel(status, "OK", "Atenção", "Reagir !!!")) %>% 
+  
+ ungroup() %>% 
+group_by(materia) %>% 
+mutate(media = round(ifelse(trimestre == "segundo", cumsum(nota_trim)/2,
+                            ifelse(trimestre == "terceiro", cumsum(nota_trim)/3, cumsum(nota_trim))), 1)) %>%   
+ 
+  
+ggplot(aes(x = trimestre, y = nota_trim, fill = status)) +
+geom_bar(stat = "identity", color = "black", sixe = 0.8) +
+geom_text(aes(label = nota_trim), vjust = -0.5, color = "black", size = 4.3) +
+  geom_text(aes(y = 10.3, label = paste("Média", media), vjust = -0.5)) + 
+geom_hline(yintercept = 5, linetype="dashed", color = "black",
+           size = 0.4, alpha = 0.4) +
+geom_hline(yintercept = 7, linetype="dashed", color = "black",
+           size = 0.4, alpha = 0.4) + 
+
+scale_y_continuous(limits = c(0, 11)) +
+scale_fill_manual("", 
+                    breaks = c("OK", "Atenção", "Reagir !!!"),
+                    values = c("yellow", "green2", "red")) +
+labs(title = "Francês",y = "") +
+theme(axis.text.x = element_text(face = "bold", color = "black", size = 10, angle = 0),
+        axis.text.y = element_blank(), # tirando texto do eixo y
+        axis.ticks.y = element_blank(), # tirando os traços do eixo y
+        panel.grid = element_blank(), # tirando todas linhas de grade
+      legend.position = "bottom",
+        # trabalhando elementos do fundo e contorno do gráfico.
+        panel.background = element_rect(fill = "cornsilk",
+                                        colour = "black",
+                                        size = 1, linetype = "solid"),
+ strip.background = element_rect(colour = "black", fill = alpha("cornsilk", 0.5)),
+ # modificando o texto
+ strip.text.x = element_text(colour = "black", face = "bold", size=10, angle=0))
+
+
+graf_6 <- ghj %>% mutate_if(is.character, as.factor) %>% 
+group_by(nome, trimestre, materia) %>% # Agrupando para somar.
+summarise(nota_trim = sum(nota)) %>% 
+mutate(status = ifelse(nota_trim >= 7, "OK", ifelse(nota_trim <= 5,
+         "Reagir !!!", "Atenção"))) %>%   
+filter(nome == params$nome & materia == "Geografia") %>%  
+mutate_if(is.character, as.factor) %>% 
+mutate(status = fct_relevel(status, "OK", "Atenção", "Reagir !!!")) %>% 
+  
+  ungroup() %>% 
+group_by(materia) %>% 
+mutate(media = round(ifelse(trimestre == "segundo", cumsum(nota_trim)/2,
+                            ifelse(trimestre == "terceiro", cumsum(nota_trim)/3, cumsum(nota_trim))), 1)) %>%   
+
+  
+ggplot(aes(x = trimestre, y = nota_trim, fill = status)) +
+geom_bar(stat = "identity", color = "black", sixe = 0.8) +
+geom_text(aes(label = nota_trim), vjust = -0.5, color = "black", size = 4.3) +
+  geom_text(aes(y = 10.3, label = paste("Média", media), vjust = -0.5)) + 
+geom_hline(yintercept = 5, linetype="dashed", color = "black",
+           size = 0.4, alpha = 0.4) +
+geom_hline(yintercept = 7, linetype="dashed", color = "black",
+           size = 0.4, alpha = 0.4) + 
+
+scale_y_continuous(limits = c(0, 11)) +
+scale_fill_manual("", 
+                    breaks = c("OK", "Atenção", "Reagir !!!"),
+                    values = c("yellow", "green2", "red")) +
+labs(title = "Geografia", y= "") +
+theme(axis.text.x = element_text(face = "bold", color = "black", size = 10, angle = 0),
+        axis.text.y = element_blank(), # tirando texto do eixo y
+        axis.ticks.y = element_blank(), # tirando os traços do eixo y
+        panel.grid = element_blank(), # tirando todas linhas de grade
+      legend.position = "bottom",
+        # trabalhando elementos do fundo e contorno do gráfico.
+        panel.background = element_rect(fill = "cornsilk",
+                                        colour = "black",
+                                        size = 1, linetype = "solid"),
+ strip.background = element_rect(colour = "black", fill = alpha("cornsilk", 0.5)),
+ # modificando o texto
+ strip.text.x = element_text(colour = "black", face = "bold", size=10, angle=0))
+
+
+# Agora crio os valores que serão aplicados à função de
+# combinação de notas. É preciso que seja um número.
+
+nota_5 <- ghj %>% filter(nome == params$nome & trimestre == "primeiro" & materia == "Francês") %>% 
+  group_by(materia) %>% summarise(result = sum(nota)) %>% ungroup() %>% select(result) %>% as.numeric()
+
+nota_6 <- ghj %>% filter(nome == params$nome & trimestre == "primeiro" & materia == "Geografia") %>% 
+  group_by(materia) %>% summarise(result = sum(nota)) %>% ungroup() %>% select(result) %>% as.numeric()
+
+# Depois aplico os valores à função. A função tem que estar no chunk.
+
+
+comb_5 <- comb_notas_trim_1(nota_5)
+
+comb_6 <- comb_notas_trim_1(nota_6)
+
+
+# O resultado da função éum data frame, precisa ser transformado 
+# em um grob (graphic objet). Usa-se a função tableGrob().
+
+grob_5 <- tableGrob(comb_5)
+
+grob_6 <- tableGrob(comb_6)
+
+
+# Agora junto os 4 objetos pelo grid.arrange().
+
+grid.arrange(graf_5, grob_5, graf_6, grob_6, nrow = 1)
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height= 5, fig.width=12}
+
+# Este chunk comporá uma linha de gráficos e tabelas com 4 colunas. 
+# Serão de Artes e Desenho Geométrico.
+
+# Primeiro crio dois objetos, os gráficos  art e des_geo.
+# Depois dois data frames, usando função.
+# Na sequência os transformo em grob (graphic objet).
+# E por fim aplico o grid.arrange do pacote grid.extra. 
+
+# 4º
+
+graf_7 <- ghj %>% mutate_if(is.character, as.factor) %>% 
+group_by(nome, trimestre, materia) %>% # Agrupando para somar.
+summarise(nota_trim = sum(nota)) %>% 
+mutate(status = ifelse(nota_trim >= 7, "OK", ifelse(nota_trim <= 5,
+         "Reagir !!!", "Atenção"))) %>%   
+filter(nome == params$nome & materia == "História") %>%  
+mutate_if(is.character, as.factor) %>% 
+mutate(status = fct_relevel(status, "OK", "Atenção", "Reagir !!!")) %>% 
+  
+  ungroup() %>% 
+group_by(materia) %>% 
+mutate(media = round(ifelse(trimestre == "segundo", cumsum(nota_trim)/2,
+                            ifelse(trimestre == "terceiro", cumsum(nota_trim)/3, cumsum(nota_trim))), 1)) %>%   
+
+  
+ggplot(aes(x = trimestre, y = nota_trim, fill = status)) +
+geom_bar(stat = "identity", color = "black", sixe = 0.8) +
+geom_text(aes(label = nota_trim), vjust = -0.5, color = "black", size = 4.3) +
+  geom_text(aes(y = 10.3, label = paste("Média", media), vjust = -0.5)) + 
+geom_hline(yintercept = 5, linetype="dashed", color = "black",
+           size = 0.4, alpha = 0.4) +
+geom_hline(yintercept = 7, linetype="dashed", color = "black",
+           size = 0.4, alpha = 0.4) + 
+
+scale_y_continuous(limits = c(0, 11)) +
+scale_fill_manual("", 
+                    breaks = c("OK", "Atenção", "Reagir !!!"),
+                    values = c("yellow", "green2", "red")) +
+labs(title = "História",y = "") +
+theme(axis.text.x = element_text(face = "bold", color = "black", size = 10, angle = 0),
+        axis.text.y = element_blank(), # tirando texto do eixo y
+        axis.ticks.y = element_blank(), # tirando os traços do eixo y
+        panel.grid = element_blank(), # tirando todas linhas de grade
+      legend.position = "bottom",
+        # trabalhando elementos do fundo e contorno do gráfico.
+        panel.background = element_rect(fill = "cornsilk",
+                                        colour = "black",
+                                        size = 1, linetype = "solid"),
+ strip.background = element_rect(colour = "black", fill = alpha("cornsilk", 0.5)),
+ # modificando o texto
+ strip.text.x = element_text(colour = "black", face = "bold", size=10, angle=0))
+
+
+graf_8 <- ghj %>% mutate_if(is.character, as.factor) %>% 
+group_by(nome, trimestre, materia) %>% # Agrupando para somar.
+summarise(nota_trim = sum(nota)) %>% 
+mutate(status = ifelse(nota_trim >= 7, "OK", ifelse(nota_trim <= 5,
+         "Reagir !!!", "Atenção"))) %>%   
+filter(nome == params$nome & materia == "Matemática") %>%  
+mutate_if(is.character, as.factor) %>% 
+mutate(status = fct_relevel(status, "OK", "Atenção", "Reagir !!!")) %>%  
+  
+  ungroup() %>% 
+group_by(materia) %>% 
+mutate(media = round(ifelse(trimestre == "segundo", cumsum(nota_trim)/2,
+                            ifelse(trimestre == "terceiro", cumsum(nota_trim)/3, cumsum(nota_trim))), 1)) %>%   
+
+  
+ggplot(aes(x = trimestre, y = nota_trim, fill = status)) +
+geom_bar(stat = "identity", color = "black", sixe = 0.8) +
+geom_text(aes(label = nota_trim), vjust = -0.5, color = "black", size = 4.3) +
+  geom_text(aes(y = 10.3, label = paste("Média", media), vjust = -0.5)) + 
+geom_hline(yintercept = 5, linetype="dashed", color = "black",
+           size = 0.4, alpha = 0.4) +
+geom_hline(yintercept = 7, linetype="dashed", color = "black",
+           size = 0.4, alpha = 0.4) + 
+
+scale_y_continuous(limits = c(0, 11)) +
+scale_fill_manual("", 
+                    breaks = c("OK", "Atenção", "Reagir !!!"),
+                    values = c("yellow", "green2", "red")) +
+labs(title = "Matemática", y= "") +
+theme(axis.text.x = element_text(face = "bold", color = "black", size = 10, angle = 0),
+        axis.text.y = element_blank(), # tirando texto do eixo y
+        axis.ticks.y = element_blank(), # tirando os traços do eixo y
+        panel.grid = element_blank(), # tirando todas linhas de grade
+      legend.position = "bottom",
+        # trabalhando elementos do fundo e contorno do gráfico.
+        panel.background = element_rect(fill = "cornsilk",
+                                        colour = "black",
+                                        size = 1, linetype = "solid"),
+ strip.background = element_rect(colour = "black", fill = alpha("cornsilk", 0.5)),
+ # modificando o texto
+ strip.text.x = element_text(colour = "black", face = "bold", size=10, angle=0))
+
+
+# Agora crio os valores que serão aplicados à função de
+# combinação de notas. É preciso que seja um número.
+
+nota_7 <- ghj %>% filter(nome == params$nome & trimestre == "primeiro" & materia == "História") %>% 
+  group_by(materia) %>% summarise(result = sum(nota)) %>% ungroup() %>% select(result) %>% as.numeric()
+
+nota_8 <- ghj %>% filter(nome == params$nome & trimestre == "primeiro" & materia == "Matemática") %>% 
+  group_by(materia) %>% summarise(result = sum(nota)) %>% ungroup() %>% select(result) %>% as.numeric()
+
+# Depois aplico os valores à função. A função tem que estar no chunk.
+
+comb_7 <- comb_notas_trim_1(nota_7)
+
+comb_8 <- comb_notas_trim_1(nota_8)
+
+
+# O resultado da função éum data frame, precisa ser transformado 
+# em um grob (graphic objet). Usa-se a função tableGrob().
+
+grob_7 <- tableGrob(comb_7)
+
+grob_8 <- tableGrob(comb_8)
+
+
+# Agora junto os 4 objetos pelo grid.arrange().
+
+grid.arrange(graf_7, grob_7, graf_8, grob_8, nrow = 1)
+
+```
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.height= 5, fig.width=12}
+
+# Este chunk comporá uma linha de gráficos e tabelas com 4 colunas. 
+# Serão de Artes e Desenho Geométrico.
+
+# Primeiro crio dois objetos, os gráficos  art e des_geo.
+# Depois dois data frames, usando função.
+# Na sequência os transformo em grob (graphic objet).
+# E por fim aplico o grid.arrange do pacote grid.extra. 
+
+# 5º
+
+graf_9 <- ghj %>% mutate_if(is.character, as.factor) %>% 
+group_by(nome, trimestre, materia) %>% # Agrupando para somar.
+summarise(nota_trim = sum(nota)) %>% 
+mutate(status = ifelse(nota_trim >= 7, "OK", ifelse(nota_trim <= 5,
+         "Reagir !!!", "Atenção"))) %>%   
+filter(nome == params$nome & materia == "Português") %>%  
+mutate_if(is.character, as.factor) %>% 
+mutate(status = fct_relevel(status, "OK", "Atenção", "Reagir !!!")) %>% 
+  
+  ungroup() %>% 
+group_by(materia) %>% 
+mutate(media = round(ifelse(trimestre == "segundo", cumsum(nota_trim)/2,
+                            ifelse(trimestre == "terceiro", cumsum(nota_trim)/3, cumsum(nota_trim))), 1)) %>%   
+
+  
+ggplot(aes(x = trimestre, y = nota_trim, fill = status)) +
+geom_bar(stat = "identity", color = "black", sixe = 0.8) +
+geom_text(aes(label = nota_trim), vjust = -0.5, color = "black", size = 4.3) +
+  geom_text(aes(y = 10.3, label = paste("Média", media), vjust = -0.5)) + 
+geom_hline(yintercept = 5, linetype="dashed", color = "black",
+           size = 0.4, alpha = 0.4) +
+geom_hline(yintercept = 7, linetype="dashed", color = "black",
+           size = 0.4, alpha = 0.4) + 
+
+scale_y_continuous(limits = c(0, 11)) +
+scale_fill_manual("", 
+                    breaks = c("OK", "Atenção", "Reagir !!!"),
+                    values = c("yellow", "green2", "red")) +
+labs(title = "Português",y = "") +
+theme(axis.text.x = element_text(face = "bold", color = "black", size = 10, angle = 0),
+        axis.text.y = element_blank(), # tirando texto do eixo y
+        axis.ticks.y = element_blank(), # tirando os traços do eixo y
+        panel.grid = element_blank(), # tirando todas linhas de grade
+      legend.position = "bottom",
+        # trabalhando elementos do fundo e contorno do gráfico.
+        panel.background = element_rect(fill = "cornsilk",
+                                        colour = "black",
+                                        size = 1, linetype = "solid"),
+ strip.background = element_rect(colour = "black", fill = alpha("cornsilk", 0.5)),
+ # modificando o texto
+ strip.text.x = element_text(colour = "black", face = "bold", size=10, angle=0))
+
+
+graf_10 <- ghj %>% mutate_if(is.character, as.factor) %>% 
+group_by(nome, trimestre, materia) %>% # Agrupando para somar.
+summarise(nota_trim = sum(nota)) %>% 
+mutate(status = ifelse(nota_trim >= 7, "OK", ifelse(nota_trim <= 5,
+         "Reagir !!!", "Atenção"))) %>%   
+filter(nome == params$nome & materia == "Química") %>%  
+mutate_if(is.character, as.factor) %>% 
+mutate(status = fct_relevel(status, "OK", "Atenção", "Reagir !!!")) %>%  
+  
+  ungroup() %>% 
+group_by(materia) %>% 
+mutate(media = round(ifelse(trimestre == "segundo", cumsum(nota_trim)/2,
+                            ifelse(trimestre == "terceiro", cumsum(nota_trim)/3, cumsum(nota_trim))), 1)) %>%   
+
+  
+ggplot(aes(x = trimestre, y = nota_trim, fill = status)) +
+geom_bar(stat = "identity", color = "black", sixe = 0.8) +
+geom_text(aes(label = nota_trim), vjust = -0.5, color = "black", size = 4.3) +
+  geom_text(aes(y = 10.3, label = paste("Média", media), vjust = -0.5)) + 
+geom_hline(yintercept = 5, linetype="dashed", color = "black",
+           size = 0.4, alpha = 0.4) +
+geom_hline(yintercept = 7, linetype="dashed", color = "black",
+           size = 0.4, alpha = 0.4) + 
+
+scale_y_continuous(limits = c(0, 11)) +
+scale_fill_manual("", 
+                    breaks = c("OK", "Atenção", "Reagir !!!"),
+                    values = c("yellow", "green2", "red")) +
+labs(title = "Química", y= "") +
+theme(axis.text.x = element_text(face = "bold", color = "black", size = 10, angle = 0),
+        axis.text.y = element_blank(), # tirando texto do eixo y
+        axis.ticks.y = element_blank(), # tirando os traços do eixo y
+        panel.grid = element_blank(), # tirando todas linhas de grade
+      legend.position = "bottom",
+        # trabalhando elementos do fundo e contorno do gráfico.
+        panel.background = element_rect(fill = "cornsilk",
+                                        colour = "black",
+                                        size = 1, linetype = "solid"),
+ strip.background = element_rect(colour = "black", fill = alpha("cornsilk", 0.5)),
+ # modificando o texto
+ strip.text.x = element_text(colour = "black", face = "bold", size=10, angle=0))
+
+
+# Agora crio os valores que serão aplicados à função de
+# combinação de notas. É preciso que seja um número.
+
+nota_9 <- ghj %>% filter(nome == params$nome & trimestre == "primeiro" & materia == "Português") %>% 
+  group_by(materia) %>% summarise(result = sum(nota)) %>% ungroup() %>% select(result) %>% as.numeric()
+
+nota_10 <- ghj %>% filter(nome == params$nome & trimestre == "primeiro" & materia == "Química") %>% 
+  group_by(materia) %>% summarise(result = sum(nota)) %>% ungroup() %>% select(result) %>% as.numeric()
+
+# Depois aplico os valores à função. A função tem que estar no chunk.
+
+comb_9 <- comb_notas_trim_1(nota_9)
+
+comb_10 <- comb_notas_trim_1(nota_10)
+
+
+# O resultado da função éum data frame, precisa ser transformado 
+# em um grob (graphic objet). Usa-se a função tableGrob().
+
+grob_9 <- tableGrob(comb_9)
+
+grob_10 <- tableGrob(comb_10)
+
+
+# Agora junto os 4 objetos pelo grid.arrange().
+
+grid.arrange(graf_9, grob_9, graf_10, grob_10, nrow = 1)
+
+```
+
